@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Program:
-#    TODO
+
 # History:
 # 2020 JClearLove First release
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
