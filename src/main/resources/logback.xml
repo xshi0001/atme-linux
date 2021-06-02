@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Constants define -->
+    <property name="LOG_HOME"
+              value="logs/${TOPOLOGY.NAME}"></property>
+    <property name="MODULE_NAME" value="V2XServerSpringboot"></property>
+    <!-- File define -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/${MODULE_NAME}.log</file>
+        <!-- <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy"> -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- rollover daily -->
+            <fileNamePattern>${LOG_HOME}/bak/${MODULE_NAME}_%d{yyyyMMdd}.%i.zip</fileNamePattern>
+            <!-- each file should be at most 2GB, keep 5 days worth of history, but at most 1024GB -->
+            <maxFileSize>2GB</maxFileSize>
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>50GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] %mdc{client} %msg -- [%logger:%line]%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Console define -->
+    <appender name="CONSOLE"
+              class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] %mdc{client} %msg -- [%logger:%line]%n</Pattern>
+        </encoder>
+    </appender>
+
+    <!-- Log root -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+    <!-- Custom level -->
+    <logger name="org.apache.zookeeper" level="ERROR"/>
+    <logger name="org.apache.curator" level="ERROR"/>
+    <logger name="com.netflix.curator" level="ERROR"/>
+    <logger name="backtype.storm.utils.StormBoundedExponentialBackoffRetry" level="ERROR"/>
+    <logger name="shade.storm.org.apache.zookeeper" level="ERROR"/>
+    <logger name="shade.storm.org.apache.curator" level="ERROR"/>
+
+    <logger name="com.alibaba.jstorm" additivity="true">
+        <level value="ERROR"/>
+    </logger>
+    <logger name="com.alibaba.jstorm.daemon.worker.hearbeat" additivity="false">
+        <level value="WARN"/>
+    </logger>
+    <logger name="com.alibaba.jstorm.task.heartbeat" additivity="false">
+        <level value="WARN"/>
+    </logger>
+
+    <logger name="com.cmcc.iot.v2x" level="info"/>
+
+</configuration>

@@ -1,0 +1,10 @@
+Kafka_Procuder_Config:
+                          bootstrap.servers: 10.0.22.11:9092,10.0.22.12:9092,10.0.22.13:9092，10.0.22.14:9092,10.0.22.15:9092，10.0.22.16:9092
+                          value.serializer: org.apache.kafka.common.serialization.StringSerializer
+                          key.serializer: org.apache.kafka.common.serialization.StringSerializer
+                          partitioner.class: com.cmcc.iot.v2x.transmit.v3_2.kafka.KeyHashPartitioner
+                          buffer.memory: 33554432
+                          retries: 0
+                          linger.ms: 1
+                          batch.size: 16384
+                          acks: 0

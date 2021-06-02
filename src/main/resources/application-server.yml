@@ -1,0 +1,392 @@
+topology:
+  vers: V3_2 #invalid
+  mode: remote # local / remote
+  debug: false
+  name: v2xserver
+  workers: 21 # 每台6个*50=300，每台10万并发*50=500万 91
+  udpBuffer: 900 # 单位是M 1.56G/400M = 4倍 800M/200M =4倍 net.ipv4.udp_mem= 786432 （3G）3145728  4194304
+  # net.ipv4.udp_mem= 1572864（6G) 3145728  4194304           900m
+  testStringArrayLength: 2880000  # 存取每一个包时延大小，长度要大于jmeter发包总数/线程总数
+  testWriteRedisTimeBegin: 1800000  # 时间大于集群部署时间+jmeter发包时间（map + bsm） 30min
+  testIpServer: false # true: 10.0.22.x   false: 10.1.22.x
+  isFieldsGrouping: false
+  testUDPServerFlag: true
+  testSpoutDecodeFlag: false
+  testBoltDealFlag: true
+  testNettyClientSenderRsu: false
+  nimbusTaskTimeoutSecs: 360
+  nimbusTaskLaunchSecs: 180
+  testJVMServer: false  # true，虚拟机， false ：物理机
+  testStealTimeRaio: 1 # 虚机超发steal time比例
+  workerChildopts:
+    #-Dcom.sun.management.jmxremote.port=19998
+    #-Dcom.sun.management.jmxremote.ssl=false
+    #-Dcom.sun.management.jmxremote.authenticate=false  ParallelGCThreads = 8 + ((N - 8) * 5/8) = 3 +（（5*CPU）/ 8）
+    -XX:+UseConcMarkSweepGC
+    -XX:+UseCMSInitiatingOccupancyOnly
+    -XX:CMSInitiatingOccupancyFraction=68
+    -XX:ParallelGCThreads=13
+    -XX:+UseCMSCompactAtFullCollection
+    -XX:CMSFullGCsBeforeCompaction=6
+    -XX:SoftRefLRUPolicyMSPerMB=0
+    -XX:+CMSParallelRemarkEnabled
+    -XX:+UseFastAccessorMethods
+    -XX:+UseBiasedLocking
+    -XX:+AggressiveOpts
+    -XX:+UseCompressedOops
+    -XX:+ExplicitGCInvokesConcurrent
+    -XX:+DisableExplicitGC
+    -XX:+AlwaysLockClassLoader
+    -XX:PretenureSizeThreshold=1M
+    -Xms24g
+    -Xmx24g
+    -Xmn1g
+
+  spoutReader:
+    obu:
+      name: BsmReader
+      decodeThreads: 1  # 64  96可以 180太多..java.lang.OutOfMemoryError: unable to create new native thread
+      #每个spout并发线程内部消息解码线程的数量，一个解码线程内占用1个redis链接（百万吞吐建议值：15）
+      parallelism: 1    # 并发等于worker数量，  每一台server上面bsm-spout个数  （但是只能为1，其它处理的时候只选一个spout，提高并行度没有实际意义)
+      ports:            # netty接收消息的UDP端口，由LVS接收端口转发到以下列表
+        - 8081 # 10.0.22.12 -jmeter1 10.0.22.34
+        - 8082 # 10.0.22.12 -jmeter1 10.0.22.34
+        - 8083 # 10.0.22.13 -jmeter2 10.0.22.35
+        - 8084 # 10.0.22.13 -jmeter2 10.0.22.35
+        - 8085 # 10.0.22.14 -jmeter3 10.0.22.36
+        - 8086 # 10.0.22.14 -jmeter3 10.0.22.36
+        - 8087 # 10.0.22.15 -jmeter4 10.0.22.37
+        - 8088 # 10.0.22.15 -jmeter4 10.0.22.37
+        - 8089 # 10.0.22.16 -jmeter5 10.0.22.38
+        - 8090 # 10.0.22.16 -jmeter5 10.0.22.38
+        - 8091 # 10.0.22.12 -jmeter1 10.0.22.34
+        - 8092 # 10.0.22.12 -jmeter1 10.0.22.34
+        - 8093 # 10.0.22.13 -jmeter2 10.0.22.35
+        - 8094 # 10.0.22.13 -jmeter2 10.0.22.35
+        - 8095 # 10.0.22.14 -jmeter3 10.0.22.36
+        - 8096 # 10.0.22.14 -jmeter3 10.0.22.36
+#        - 8097 # 10.0.22.15 -jmeter4 10.0.22.37
+#        - 8098 # 10.0.22.15 -jmeter4 10.0.22.37
+#        - 8099 # 10.0.22.16 -jmeter5 10.0.22.38
+#        - 8100 # 10.0.22.16 -jmeter5 10.0.22.38
+    rsu:
+      name: RsuReader
+      decodeThreads: 2  # ♥（根据信号机数量实际测验匹配值，性能测试取值：5~10）--这个决定queueRecvList的长度，如果1/s一个是不是不要那么多线程
+      parallelism: 2    # 并发等于worker数量，此参数设置无效  #invalid
+      ports:            # netty接收消息的UDP端口，由LVS接收端口转发到以下列表
+        - 8061 # rsi
+  #        - 8062 # rsm
+  #        - 8063 # spat
+  #        - 8064 # map
+  #        - 8065
+  #        - 8066
+  #        - 28062
+  #        - 28063
+  #        - 28064
+  #        - 28065
+  boltHandler:
+    obu:
+      streamId: STREAM_BSM  # 当前bolt接收消息流的名称 （10*15 每一台3个bolt）
+      threadCount: 1          # 32- 每个bolt并发线程内部消息处理线程的数量，调整线程数适配接收下来数据的业务处理能力（百万吞吐建议值：5）
+      parallelism: 5        #  48 在一个worker中当前bolt的并发度，调整并发度适配spout发送量的接收能力 16 *3 =48
+    rsu:
+      streamId: STREAM_RSU
+      threadCount: 2        # （根据信号机数量实际测验匹配值，性能测试取值：10~15）
+      parallelism: 5        # 并发等于worker数量，RSU消息此参数设置无效  #invalid
+
+clientIpFilter: #Allowed 和 Banned 只能二选一进行配置
+  enable: false
+  ipsAllowed: # 允许为空，则表示允许所有
+  #    - 127.0.0.1
+  ipsBanned: # 封禁为空，则表示不封禁
+#    - 127.0.0.1
+#    - 127.0.0.2
+
+reflection:
+  initializer: com.cmcc.iot.v2x.transmit.common.intf.impl.Initializer
+  spoutDecoder: com.cmcc.iot.v2x.transmit.v3_2.netty.NettyServerDecoder  #invalid
+  spoutReceiver:
+    - id: 18
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.spout.receiver.MAPReceiver
+    - id: 19
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.spout.receiver.SPATReceiver
+    - id: 20
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.spout.receiver.BSMReceiver
+    - id: 50
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.spout.receiver.RSMReceiver
+    - id: 51
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.spout.receiver.RSIReceiver
+  boltHandler:
+    - id: 18
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.bolt.handler.MAPHandler
+    - id: 19
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.bolt.handler.SPATHandler
+    - id: 20
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.bolt.handler.BSMHandler
+    - id: 50
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.bolt.handler.RSMHandler
+    - id: 51
+      clazz: com.cmcc.iot.v2x.transmit.v3_2.bolt.handler.RSIHandler
+
+queueSize:
+  spoutRecvQueue: 204800 # spout接收队列大小
+  spoutWriteQueue: 204800 # spout写出数据队列大小
+  boltRecvQueue: 3072000 # bolt接收队列大小
+  boltOrderQueue: 204800 # 路口下订购关系车辆列表大小，一个车长5米，200米车道40辆车，双向6车道240辆车，4个路口960辆车，每个车一秒10条数据，共计9600条，扩大二倍队列长度19600
+  boltSendQueue: 102400 # 广播消息发送队列大小
+
+stepFlag:
+  spoutCountFlag: true # Case 1 spout接收数据是否计数
+  spoutQueueFlag: true # Case 2 spout接收数据是否使用队列
+  spoutDecodeFlag: true # Case 3 spout接收数据是否解码
+  spoutEmitFlag: true  # Case 4 spout接收数据是否发送到bolt处理
+  boltQueueFlag: true # Case 5  bolt收到数据后是否放入队列
+  boltDealFlag: true  # case 6 bolt收到数据放入队列后是否调用handler处理类处理
+  boltDealRelateFlag: true # Case 7 bolt计算关联节点
+  boltDealCalcRegion: true # Case 7-1 区域计算，仅启动自定义区域后有效
+  boltDealCalcRelate: true  # Case 7-2 关联节点计算
+  boltDealOrderFlag: true  # Case 8 bolt添加订购关系
+  boltSendFlag: true # Case 9 bolt收到数据后处理后是否放入发送队列，端到端
+
+map:
+  customRegion:
+    enable: true # 是否启用自定义区域划分是否启用
+    range: # 矩形区域的最小经度，最大经度，最小纬度，
+      #      minLng: 1202120600
+      minLng: 120212060
+      maxLng: 1203688944
+      minLat: 31460371
+      maxLat: 315992736
+    count: # 矩形区域平均划分网格区域的行个数，列个数
+      x: 4
+      y: 7
+  geoRegion: # geoHash区域
+    enable: true
+    numberOfCharacters: 6 # 1 2500km;2 630km;3 78km;4 30km;5 2.4km;6 610m;7 76m;8 19m;9 5m;10 60cm;11 15cm;12 2cm
+
+  nodes:
+    enable: false
+    nodes:
+      - lng: 1212240260
+        lat: 313285730
+        regionId: 1
+        nodeId: 5
+      - lng: 1212266370
+        lat: 313264430
+        regionId: 1
+        nodeId: 6
+
+  links: # 自定义节点关联关系，仅提供节点间ID关联关系，redis中提供json格式数据
+    enable: true
+    links:
+      - id: 0-783  # 参考节点ID
+        linked:  # 关联节点列表，key：暂无意义，value：关联节点ID（regionID-nodeID）
+          north: 0-877
+          east: 0-786
+
+###########################################################
+# [spat.a]表示统一配置spat消息复制扩散级数
+# 示例：msg.spat.spread.level=0
+# 0表示不扩散
+# [spat.b]表示按照路口ID(regionId=1，nodeId)配置spat消息复制扩散级数，优先级高于[spat.a]
+# X标识RegionId,Y标识NodeId
+# 示例：msg.spat.spread.1.1=1
+# 表示regionId=1，nodeId=1的信号灯复制扩散1级节点
+# [spat.c]表示按照路口ID(regionId=1，nodeId)配置spat消息复制扩散节点列表，优先级高于[spat.b]
+# X标识RegionId,Y标识NodeId
+# 示例：msg.spat.spread.nodes.1.1=regionId1:nodeId1,regionId1:nodeId2
+# 表示regionId=1，nodeId=1的信号灯复制扩散到(regionId1:nodeId1)(regionId1:nodeId2)两个节点
+msgSpread:
+  enable: false # 是否开启node关系广播关联节点spat/rsi/rsm消息
+  spat:
+    level:
+      global: 0
+      intersection:
+        X.Y: 1
+    nodes:
+      X.Y:
+        - regionId: 1
+          nodeId: 1
+###########################################################
+# 消息下发关联信息，根据关联关系，在下发当前节点spat消息时，同时发送关联节点spat消息给当前节点的车机终端
+# 信号灯数据适用于关联方式下发
+msgLinkSpread: # 关联关系定义
+  enable: true # 是否开启link关系关联节点spat消息
+  level:
+    global: 2 # 全局关联级别
+    intersection: # 某个节点的关联级别，优先级高于全局
+      X-Y: 2
+      24-3: 0
+      24-1: 2
+  nodes: # 直接按节点ID重新制定关联关系，不建议使用，优先级最高
+    X-Y:
+      - 1-1
+      - 1-2
+
+###########################################################
+
+testFlag:
+  rsu:
+    enable: false # SPAT消息端到端测试是否启用，则将SPAT消息发送回上报SPAT消息的客户端
+    ip: 127.0.0.1 #192.168.1.49 # SPAT消息端到端测试IP，如果启用了SPAT端到端测试，此值必须配置
+    port: 8981  # SPAT消息端到端测试PORT，如果启用了SPAT端到端测试，此值必须配置
+  bsm:
+    enable: false # 车机接口测试是否启用，启用此测试，在接收到车机BSM消息后直接返回模拟的SPAT、MAP、RSI、RSM
+    # 车机接口测试启用IP列表，如果配置了这个信息则只对ip列表中的上报客户端采用测试模式
+    # include 和 exclude 只能二选一进行配置
+    ipsInclude: # 包含为空，则表示所有IP都不走调试流程
+    #  - 127.0.0.1
+    ipsExclude: # 排除为空，则表示所有IP都走调试流程
+    #  - 127.0.0.1
+
+matcherRules:
+  spatUpdatePeriod: -1 # 车辆建立订购关系的时间戳与信号灯更新上报数据时间戳的差值，时间差内建立订购关系，-1表示不限制 #invalid
+  bsmComplexMatch: false # 是否对车机的MAP匹配开启复杂逻辑匹配，即除了距离匹配以外的负责匹配逻辑应用
+  bsmOrderPeriod: 3000 # 根据车辆上报BSM消息生成车辆与Intersection之间的订购关系有效期 ,单位：毫秒，不配置或配置-1表示永久有效
+  bsmDistance: 300 # 车辆与路口匹配规则，距离规则，单位：米
+  #  bsmAngle: 1200 # 车辆与路口匹配规则，角度规则，取值范围 0~28800，单位：度，分辨率为0.0125°，角度范围 0 to 359.9875 degrees
+  rsiDistance: 600 # RSI与路口匹配规则，距离规则，单位：米, -1表示不限制
+  rsiVirtualNode: false # rsi独立虚拟路口信息
+  rsmDistance: 600 # RSM与路口匹配规则，距离规则，单位：米, -1表示不限制
+  rsmVirtualNode: false # rsm独立虚拟路口信息
+
+
+msgSecurity:
+  aes:
+    enable: false # 消息AES编码/解码是否开启
+    testEnable: false # 是否使用配置文件中的Key，测试时可以开启
+    key: B9E371FD81114D68 # AES密钥
+    iv: 4e5Wa71fYoT7MFEX # AES偏移量，CBC模式适用，ECB模式不适用 #invalid
+    validtime: 20990704020000000 # AES密钥有效期
+  token:
+    enable: false # 是否开启token认证
+    testEnable: true # 是否使用配置文件中的token，测试时可以开启
+    token: 3350ED66 # token值，测试开启有效，所有车辆均采用此token
+    validtime: 20990704020000000 # token有效期
+
+kafka: # 数据写入kafka配置信息
+  producerConfig: Kafka_Procuder_Config.yml
+  async: true # 同步（sync）、异步（async） 最好改成异步的，好像有错误
+  partition: #invalid
+    bsm: 100
+    map: 100
+    spat: 100
+    rsi: 100
+    rsm: 100
+
+redis: # 数据写入redis配置信息
+  orderEnable: false # 是否使用redis保存订购关系
+  enable: false
+  server:
+  port: 6379 #16379
+  timeout: 5000
+  auth: test1234 #cmcc@2018!@#
+  defaultDb: 5
+  maxActive: 1000 #最大活动对象数
+  maxIdle: 50 #最大能够保持idel状态的对象数
+  minIdle: 10 #最小能够保持idel状态的对象数
+  maxWait: 10000  #当池内没有返回对象时，最大等待时间
+  testOnBorrow: true #当调用borrowObject方法时，是否进行有效性检查
+  testOnReturn: true #当调用returnObject方法时，是否进行有效性检查
+  testWhileIdle: true #向调用者输出“链接”对象时，是否检测它的空闲超时；
+  timeBetweenEvictionRunsMillis: 30000 #“空闲链接”检测线程，检测的周期，毫秒数。如果为负值，表示不运行“检测线程”。默认为-1.
+  numTestsPerEvictionRun: 20 #对于“空闲链接”检测线程而言，每次检测的链接资源的个数。默认为3.
+  channels:
+    - V2XSecretKey
+    - V2XSecretToken
+  broadcast: #广播消息发送配置
+    db: #待发送广播消息的保存库
+      bsm: 1
+      spat: 2 #invalid
+      rsi: 3 #invalid
+      rsm: 4 #invalid
+
+httpConfig:
+  forward: http://localhost:8080/forward/
+
+dataWriteConfig:
+  enable: false # 是否开始数据写出
+  http:
+    enable: false # 是否开启HTTP转发，转发到物联网
+    bsm:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+    spat:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+    map:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+    rsi:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制 #invalid
+    rsm:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制 #invalid
+  kafka:
+    enable: false # 是否开启Kafka写入
+    bsm:
+      enable: true
+      md5: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+      topic: V2X_BSM
+    bsmHot:
+      enable: true
+      md5: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+      topic: V2X_BSM_HOT
+    spat:
+      enable: true
+      md5: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+      topic: V2X_SPAT
+    map:
+      enable: true
+      md5: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+      topic: V2X_MAP
+    rsi:
+      enable: true
+      md5: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+      topic: V2X_RSI
+    rsm:
+      enable: true
+      md5: true
+      frequency: 1000 # 写出时间间隔，单位毫秒-，1不控制
+      topic: V2X_RSM
+  redis:
+    enable: false # 是否开启redis写入
+    bsm:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+    spat:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+    map:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制
+    rsi:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒，-1不控制 #invalid
+    rsm:
+      enable: true
+      frequency: 1000 # 写出时间间隔，单位毫秒 ，-1不控制 #invalid
+
+mqttSendConfig:
+  enable: false
+  userName: admin
+  password: test1234
+  serverURI: tcp://127.0.0.1:9058
+  clientId: client1-server
+  qos: 1
+  topic: v2x
+
+mqttRecieveConfig:
+  enable: false
+  userName: admin
+  password: test1234
+  serverURI: tcp://127.0.0.1:9058
+  clientId: client2-server
+  qos: 1
+  topic: v2x
