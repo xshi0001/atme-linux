@@ -1,26 +1,28 @@
 # atme-linux
-> Here goes your awesome project description!
-* [General info](#general-info)
-* [Screenshots](#screenshots)
-* [Technologies](#technologies)
-* [Project architecture](#project-architecture)
-* [Directory Structure](#directory-structure)
-* [Setup](#setup)
-* [Features](#features)
-* [Status](#status)
-* [Inspiration](#inspiration)
-* [Contact](#contact)
 
-Add more general information about project. What the purpose of the project is? Motivation?
-![image](img/image.png)
-* Tech 1 - version 1.0
-Describe how to install / setup your local environement / add link to demo version.
-Show examples of usage:
-`put-your-code-here`
-List of features ready and TODOs for future development
-* Awesome feature 1
-To-do list:
-* Wow improvement to be done 1
-Project is: _in progress_, _finished_, _no longer continue_ and why?
-Add here credits. Project inspired by..., based on...
-Created by [@JClearLove](https://www.flynerd.pl/) - feel free to contact me!
+
+## 排序命令
+- sort
+- wc
+- uniq
+
+## 截取命令
+
+[cut command in Linux with examples](https://www.geeksforgeeks.org/cut-command-linux-examples/)
+- cut
+
+-d ：后面接分隔字符。与 -f 一起使用（一定是一起使用不然报错）
+
+语法：cut -d "delimiter" -f (field number) file.txt
+` ss -tn  | cut -d ':' -f 8 |cut -d ']' -f 1`
+
+
+ `ss state all sport = :9092 | cut -d ':' -f 8 |cut -d ']' -f 1  |sort | uniq -c`
+
+- grep
+## 正则
+
+- sed
+- awk: 好用的数据处理工具
+
+
