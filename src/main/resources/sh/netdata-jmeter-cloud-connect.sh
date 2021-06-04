@@ -1,3 +1,10 @@
+#!/usr/bin/env bash
+# Program:
+#   添加netdata节点到cloud，注意token要自己带上
+# History:
+# 2020 JClearLove First release
+
+
 [[ -d /var/lib/netdata/cloud.d ]] && rm -rf /var/lib/netdata/cloud.d/
 
 
