@@ -1,0 +1,20 @@
+2021-06-04 15:47:17,158 INFO o.a.j.u.JMeterUtils: Setting Locale to en_EN
+2021-06-04 15:47:17,169 INFO o.a.j.JMeter: Loading user properties from: /opt/jmeter/bin/user.properties
+2021-06-04 15:47:17,169 INFO o.a.j.JMeter: Loading system properties from: /opt/jmeter/bin/system.properties
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: Copyright (c) 1998-2020 The Apache Software Foundation
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: Version 5.4
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: java.version=1.8.0_211
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: java.vm.name=Java HotSpot(TM) 64-Bit Server VM
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: os.name=Linux
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: os.arch=amd64
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: os.version=3.10.0-957.27.2.el7.x86_64
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: file.encoding=UTF-8
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: java.awt.headless=null
+2021-06-04 15:47:17,177 INFO o.a.j.JMeter: Max memory     =1073741824
+2021-06-04 15:47:17,178 INFO o.a.j.JMeter: Available Processors =4
+2021-06-04 15:47:17,182 INFO o.a.j.JMeter: Default Locale=English (EN)
+2021-06-04 15:47:17,182 INFO o.a.j.JMeter: JMeter  Locale=English (EN)
+2021-06-04 15:47:17,182 INFO o.a.j.JMeter: JMeterHome=/opt/jmeter
+2021-06-04 15:47:17,182 INFO o.a.j.JMeter: user.dir  =/opt/atme-linux/src/main/resources/sh
+2021-06-04 15:47:17,182 INFO o.a.j.JMeter: PWD       =/opt/atme-linux/src/main/resources/sh
+2021-06-04 15:47:17,183 INFO o.a.j.JMeter: IP: 10.54.0.229 Name: clxt-client001 FullName: clxt-client001
