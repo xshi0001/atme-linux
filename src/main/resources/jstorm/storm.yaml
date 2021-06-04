@@ -43,7 +43,7 @@
 # If there are jar conflict between jstorm and application, 
 # please enable it 
 
-topology.enable.classloader: true
+  topology.enable.classloader: true
 
 # enable supervisor use cgroup to make resource isolation
 # Before enable it, you should make sure:
