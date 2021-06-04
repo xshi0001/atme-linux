@@ -1,0 +1,5 @@
+重复注册到cloud中心
+-id=$(uuidgen)
+
+
+ psshjme netdata-claim.sh -token=51uzCt_eocUNsjzrFCVeDcgK3bh7jyQHt6ws7bGM8M2wJB6DauI7XDaql__fZld_TBWH8Q_lUDYtJhGmJ8BgjAI4K0CHClUWfxQvVIvl5hph181pslXo6h3Rg-ZHMzmIXsCrS_k -rooms=c7fac673-3faa-46de-8a3d-7d7cb3e76ebf  -url=https://app.netdata.cloud  -id=$(uuidgen)
