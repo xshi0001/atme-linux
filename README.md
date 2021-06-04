@@ -1,4 +1,13 @@
 # atme-linux
 
-## [linux-常用shell命令](linux-常用shell命令.md)
-## [linux-常用排查问题命令](linux-常用排查问题命令.md)
+1 复制 limits.conf
+
+ 重新登陆，使用prlimit
+
+2 sysctl.conf 到服务器
+
+
+
+
+
+
