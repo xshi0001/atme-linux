@@ -39,7 +39,19 @@ iotop -botq -n 5 -d 2
 iotop -botq -p 8382
 
 ### cpu
-### network 网络
+
+
+#### cpu 火焰图
+
+通过cpu火焰图查看热点
+
+
+- [火焰图--记一次cpu降温过程](https://www.cnblogs.com/jijunjian/p/12637246.html)
+- [火焰图分析CPU性能问题](https://www.cnblogs.com/xiaoxitest/p/10584542.html)
+
+
+
+### network
 
 #### IPTraf
 IPTraf 是诊断网络问题的利器，他可以监控系统的所有网络流量。可以为指定的端口、传输类型设置过滤器。
@@ -159,10 +171,10 @@ ss -4 state closing
 
 ### 综合
 
-#### htop工具
+#### 1 htop工具
 [htop使用详解](https://www.cnblogs.com/programmer-tlh/p/11726016.html)
 
-#### Monit工具
+#### 2 Monit工具
 Monit 允许对进程、端口、文件等目标进行监控，并且可以设置动态的告警模式。支持对进程的重启
 [centos7使用monit监控服务运行状态](https://blog.51cto.com/u_12173069/2307649)
 
@@ -225,6 +237,172 @@ t选项只返回PID `  lsof -t -c nginx`
 显示与指定目录交互的所有一切   `lsof  /var/log/messages/`
 
 
+
+#### 4 如何查看一个进程的线程数？
+
+- 使用top命令
+
+1. 具体用法是 `top -H`
+   加上这个选项，top的每一行就不是显示一个进程，而是一个线程。
+
+2. `top -p 20378 ` 只显示该进程的变化情况 ，但是在按`H（shift + h）`后，会显示threads的信息，但是总的CPU占用之和远小于没按H之前的占用之和。
+
+-  使用ps命令
+
+1. 具体用法是 `ps -xH`
+   这样可以查看所有存在的线程，也可以使用grep作进一步的过滤。
+2. ps -Lf pid
+  查看对应进程下的线程信息,查到pid 22564下有1个进程（自身）+48个线程
+
+3. `ps -mq PID`
+
+   这样可以看到指定的进程产生的线程数目
+4. ps –o nlwp pid
+   nlwp含义是`number of light-weight process`，看到该进程内有多少个线程，该进程内部有多少个线程；但是并没有排除处于`idle`状态的线程。要想获得真正在`running`的线程数量
+
+`ps -eLo pid ,stat | grep 27989 | grep running | wc -l`，其中ps -eLo pid ,stat可以找出所有线程，并打印其所在的进程号和线程当前的状态
+
+- 使用`pstree -p pid `
+
+1. 通过进程PID查看进程下线程的PID
+
+#### 5 如何定位cpu高负载的排查
+
+线上一个java进程cpu负载100%。按以下步骤查出原因。
+1. 执行`top -c`命令，找到cpu最高的进程的id
+2. 执行`top -H -p pid`，这个命令就能显示刚刚找到的进程的所有线程的资源消耗情况。找到CPU负载高的线程pid 8627, 把这个数字转换成16进制，21B3（10进制转16进制，用linux命令:` printf %x 8627`获取线程nid）。
+3. 执行`jstack -l pid`，拿到进程的线程dump文件。这个命令会打出这个进程的所有线程的运行堆栈,或者  jstack 30663 |grep -B 10 -A 10 线程nid
+4. 用记事本打开这个文件，搜索“21B3”，就是搜一下16进制显示的线程id。搜到后，下面的堆栈就是这个线程打出来的。排查问题从这里深入。
+遇到的常见问题：
+
+结论一：因为不断GC
+`VM THREAD`把进程的资源耗尽。那只能说明是jvm在耗cpu。很容易想到是疯狂的GC，按关键字 `overhead`搜一下系统日志， 发现 `java.lang.OutOfMemoryError: GC overhead limit exceeded`日志。jvm在疯狂的`Full GC`，而且有个大对象始终根节点路径可达，无法释放。dump了一下这个实例的内存，发现确实有大对象，占用了一个多G的堆内存。
+
+结论二：cpu高是因为出现死循环
+
+
+`DD_AGENT_MAJOR_VERSION=7 DD_API_KEY=5ad302169438a7645fef1fc98318a25a DD_SITE="datadoghq.com" bash -c "$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)"`
+
+https://app.datadoghq.com/signup/agent#centos
+
+#### 6 nmon
+
+#### 7 load高、cpu低的问题排查思路
+
+[ load高、cpu低的问题排查思路](https://blog.csdn.net/weixin_39877166/article/details/110827810?utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-1.base&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-1.base)
+
+
+Java应用load高的几种原因总结
+
+这里总结一下load高常见的、可能的一些原因：
+
+- 死循环或者不合理的大量循环操作，如果不是循环操作，按照现代cpu的处理速度来说处理一大段代码也就一会会儿的事，基本对能力无消耗
+- 频繁的YoungGC
+- 频繁的FullGC
+- 高磁盘IO
+- 高网络IO
+
+线上遇到问题的时候首先不要慌，因为大部分load高的问题都集中在以上几个点里面，以下分析问题的步骤或许能帮你整理思路：
+
+- top先查看用户us与空闲us(id)的cpu占比，目的是确认load高是否高cpu起的
+- 如果是高cpu引起的，那么确认一下是否gc引起的，**jstat命令 + gc日志**基本就能确认
+    1. gc引起的高cpu直接dump，非gc引起的分析线程堆栈
+    2. 如果不是高cpu引起的，查看磁盘io占比(wa)，如果是，那么打线程堆栈分析是否有大量的文件io
+    3. 如果不是高cpu引起的，且不是磁盘io导致的，检查各依赖子系统的调用耗时，高耗时的网络调用很可能是罪魁祸首
+
+- 最后还是不行，当束手无策时，jstack打印堆栈多分析分析吧，或许能灵光一现能找到错误原因。
+
+结语
+
+先有理论，把理论想透了，实战碰到问题的时候才能头脑清楚。
+
+坦白讲，cpu和load高排查是一个很偏实战的事情，这方面我还也有很长一条路需要走，身边在这块经验比我丰富的同事多得很。很多人有问过我，项目比较简单，根本没有这种线上问题需要我去排查怎么办？这个问题只能说，平时多积累、多实战是唯一途径，假如没有实战机会，那么推荐三种方式：
+
+- 自己通过代码模拟各种异常，例如FullGC、死锁、死循环，然后利用工具去查，可能比较简单，但是万丈高楼平地起，再复杂的东西都是由简单的变化过来的
+- 多上服务器上敲敲top、sar、iostat这些命令，熟记每个命令的作用及输出参数的含义
+- 去网上找一下其他人处理FullGC、cpu高方法的文章，站在巨人的肩膀上，看看前人走过的路，总结记录一些实用的点
+
+
+#### 8 top
+
+1. tasks: 进程总数，运行的进程数，睡眠的进程数，停止的进程数，僵尸 进程数
+2. 使用top命令后，按f, 可以选择相关参数，按d标示 是否显示，按q标示退出
+
+top -p 进程号 -H ，查看cpu高的线程--》printf "%x" 线程pid ———》jstack 上一步结果 > thread.txt
+
+ps -eLf | grep java | wc -l 监控java 线程数
+netstat -n | grep tcp | grep 侦听端口 | wc -l 监控网络客户连接数
+
+
+#### 9 java内存泄漏排查
+
+内存对象是你已经不用了对象，但是gc不掉
+
+- [java内存泄漏排查](https://blog.csdn.net/fishinhouse/article/details/80781673)
+### References
+
+
+## 常用操作
+
+- [Running Java application as Linux service with systemd](https://medium.com/@ameyadhamnaskar/running-java-application-as-a-service-on-centos-599609d0c641)
+//s3.amazonaws.com/dd-agent/scripts/install_script.sh)"`
+
+https://app.datadoghq.com/signup/agent#centos
+
+#### 6 nmon
+
+#### 7 load高、cpu低的问题排查思路
+
+[ load高、cpu低的问题排查思路](https://blog.csdn.net/weixin_39877166/article/details/110827810?utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-1.base&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-1.base)
+
+
+Java应用load高的几种原因总结
+
+这里总结一下load高常见的、可能的一些原因：
+
+- 死循环或者不合理的大量循环操作，如果不是循环操作，按照现代cpu的处理速度来说处理一大段代码也就一会会儿的事，基本对能力无消耗
+- 频繁的YoungGC
+- 频繁的FullGC
+- 高磁盘IO
+- 高网络IO
+
+线上遇到问题的时候首先不要慌，因为大部分load高的问题都集中在以上几个点里面，以下分析问题的步骤或许能帮你整理思路：
+
+- top先查看用户us与空闲us(id)的cpu占比，目的是确认load高是否高cpu起的
+- 如果是高cpu引起的，那么确认一下是否gc引起的，**jstat命令 + gc日志**基本就能确认
+    1. gc引起的高cpu直接dump，非gc引起的分析线程堆栈
+    2. 如果不是高cpu引起的，查看磁盘io占比(wa)，如果是，那么打线程堆栈分析是否有大量的文件io
+    3. 如果不是高cpu引起的，且不是磁盘io导致的，检查各依赖子系统的调用耗时，高耗时的网络调用很可能是罪魁祸首
+
+- 最后还是不行，当束手无策时，jstack打印堆栈多分析分析吧，或许能灵光一现能找到错误原因。
+
+结语
+
+先有理论，把理论想透了，实战碰到问题的时候才能头脑清楚。
+
+坦白讲，cpu和load高排查是一个很偏实战的事情，这方面我还也有很长一条路需要走，身边在这块经验比我丰富的同事多得很。很多人有问过我，项目比较简单，根本没有这种线上问题需要我去排查怎么办？这个问题只能说，平时多积累、多实战是唯一途径，假如没有实战机会，那么推荐三种方式：
+
+- 自己通过代码模拟各种异常，例如FullGC、死锁、死循环，然后利用工具去查，可能比较简单，但是万丈高楼平地起，再复杂的东西都是由简单的变化过来的
+- 多上服务器上敲敲top、sar、iostat这些命令，熟记每个命令的作用及输出参数的含义
+- 去网上找一下其他人处理FullGC、cpu高方法的文章，站在巨人的肩膀上，看看前人走过的路，总结记录一些实用的点
+
+
+#### 8 top
+
+1. tasks: 进程总数，运行的进程数，睡眠的进程数，停止的进程数，僵尸 进程数
+2. 使用top命令后，按f, 可以选择相关参数，按d标示 是否显示，按q标示退出
+
+top -p 进程号 -H ，查看cpu高的线程--》printf "%x" 线程pid ———》jstack 上一步结果 > thread.txt
+
+ps -eLf | grep java | wc -l 监控java 线程数
+netstat -n | grep tcp | grep 侦听端口 | wc -l 监控网络客户连接数
+
+
+#### 9 java内存泄漏排查
+
+内存对象是你已经不用了对象，但是gc不掉
+
+- [java内存泄漏排查](https://blog.csdn.net/fishinhouse/article/details/80781673)
 ### References
 
 
