@@ -54,7 +54,6 @@ dump文件记录了JVM运行期间的内存占用、线程执行等情况。
 | jmap  |jmap -dump:live,format=b,file=heapdump.phrof pid （慎用，STW）|
 | jar 启动命令生产环境推荐  |java -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=<file-or-dir-path>|
 | jcmd  |jcmd 12587 GC.heap_dump /tmp/dump.hprof|
-| visualVM  |图形化界面|
 | jmx方式  |jconsole-MBeans tab and find the **HotSpotDiagnostic** under com.sun.management.|
 
 dump文件怎么分析？
@@ -64,6 +63,68 @@ dump文件怎么分析？
 堆栈分析工具
 
 ## 五、jinfo
+
+## 六、JCmd
+
+可以用它来导出堆、查看Java进程、导出线程信息、执行GC、还可以进行采样分析（jmc 工具的飞行记录器）
+
+常用使用场景与命令：
+
+1. 查看性能统计、查看指定进程的性能统计信息
+
+    `jcmd pid PerfCounter.print`
+
+
+2. 当前运行的java进程可以执行的操作,进而可以查看命令选项帮助
+
+   `jcmd pid help`
+
+   想查看 JFR.dump 命令选项， `jcmd PID help JFR.dump`
+
+3. JRF 相关命令
+
+   * enable JRF: -XX:+UnlockCommercialFeatures -XX:+FlightRecorder
+
+   * 启动JFR:`jcmd $PID JFR.start name=abc,duration=120s`
+
+   * Dump JFR等待至少duration（本文设定120s）后，执行命令：`jcmd PID JFR.dump name=abc,duration=120s filename=abc.jfr`（注意，文件名必须为.jfr后缀）
+
+   * 检查JFR状态,执行命令：`jcmd $PID JFR.check name=abc,duration=120s`
+
+   * 停止JFR, 执行命令：`jcmd $PID JFR.stop name=abc,duration=120s`
+
+   * JMC分析,切回开发机器，下载步骤3中生成的abc.jfr，打开jmc，导入abc.jfr即可进行可视化分析
+
+4. 其他
+
+|  命令 |详情|
+|---|---|
+|  jcmd PID VM.uptime |查看 JVM 的启动时长|
+|  jcmd PID GC.class_histogram |查看系统中类统计信息，jmap -histo pid的效果是一样的，这个可以查看每个类的实例数量和占用空间大小|
+|  jcmd PID Thread.print |查看线程堆栈信息|
+|  jcmd PID GC.heap_dump FILE_NAME |查看 JVM 的Heap Dump，跟 jmap命令：jmap -dump:format=b,file=heapdump.phrof pid 效果一样。导出的 dump 文件，可以使用MAT 或者 Visual VM 等工具进行分析|
+|  jcmd PID VM.system_properties |查看 JVM 的属性信息|
+|jcmd PID VM.flags|查看 JVM 的启动参数|
+|jcmd PID VM.command_line |查看 JVM 的启动命令行|
+
+
+
+
+5. 
+jcmd <PID> GC.class_stats|awk '{print$13}'|sed  's/\(.*\)\.\(.*\)/\1/g'|sort |uniq -c|sort -nrk1
+
+
+
+
+参考文献：
+
+- [jvm 性能调优工具之 jcmd](https://cloud.tencent.com/developer/article/1130026)
+
+## 七、JMC
+
+参看文献：
+
+- [JDK Mission Control 官方文档](https://www.oracle.com/java/technologies/jdk-mission-control.html)
 
 
 ## 零、开发中常见排除问题

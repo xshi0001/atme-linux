@@ -171,7 +171,7 @@ public class IndexController {
 - [火焰图--记一次cpu降温过程](https://www.cnblogs.com/jijunjian/p/12637246.html)
 - [火焰图分析CPU性能问题](https://www.cnblogs.com/xiaoxitest/p/10584542.html)
 - [如何读懂火焰图](https://www.ruanyifeng.com/blog/2017/09/flame-graph.html)
-
+- [Arthas-profiler官网文档](https://arthas.aliyun.com/doc/profiler.html)
 
 #### 2.2 top
 
