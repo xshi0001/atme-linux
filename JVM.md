@@ -55,6 +55,8 @@ dump文件记录了JVM运行期间的内存占用、线程执行等情况。
 | jar 启动命令生产环境推荐  |java -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=<file-or-dir-path>|
 | jcmd  |jcmd 12587 GC.heap_dump /tmp/dump.hprof|
 | jmx方式  |jconsole-MBeans tab and find the **HotSpotDiagnostic** under com.sun.management.|
+| arthas  |heapdump /tmp/dump.hprof|
+
 
 dump文件怎么分析？
 
@@ -63,6 +65,11 @@ dump文件怎么分析？
 堆栈分析工具
 
 ## 五、jinfo
+
+1. 动态的添加jvm参数
+
+   `jinfo -flag +PrintGCDetails <PID>`
+
 
 ## 六、JCmd
 
@@ -122,10 +129,18 @@ jcmd <PID> GC.class_stats|awk '{print$13}'|sed  's/\(.*\)\.\(.*\)/\1/g'|sort |un
 
 ## 七、JMC
 
+
+
+
+
+
 参看文献：
 
 - [JDK Mission Control 官方文档](https://www.oracle.com/java/technologies/jdk-mission-control.html)
 
+## 八、JProfile
+
+-[Jprofile解析dump文件使用详解](https://mp.weixin.qq.com/s/7WGs6gmn9piSEzcO9IkbMA)
 
 ## 零、开发中常见排除问题
 

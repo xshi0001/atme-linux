@@ -126,3 +126,6 @@ ps -ef | grep 'myProcessName' | grep -v grep | awk '{print $2}' | xargs -r kill 
 
 
 pssh -h /opt/ssh-scripts/pssh50-26-50jmeters.txt -l root -i -t 0 jmeter -p /opt/demoforshi/pragram/V2XServer.properties -n -t /opt/demoforshi/pragram/500-deee.jmx & jmeter -p /opt/demoforshi/pragram/rsi.properties  -n -t /opt/demoforshi/pragram/simulator-deee.jmx
+
+
+while read a b; do  sshpass -p Clxt@2021  pssh -H ${a}  -A -i  -l root   "/opt/ssh-scripts/sedjmx.sh ${b}"; done <server-jmeter.txt;
